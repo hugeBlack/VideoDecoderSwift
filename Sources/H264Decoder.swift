@@ -141,6 +141,36 @@ open class H264Decoder: VideoDecoder {
         }
     }
     
+    open func decodeOnePacketNoParse(_ packet: VideoPacket) {
+        if fps != packet.fps || videoSize != packet.videoSize {
+            invalidateSession = true
+            fps = packet.fps
+            videoSize = packet.videoSize
+        }
+        let unit = H264NalUnit(packet.buffer, bufferSize: packet.bufferSize)
+        var currntUnit: H264NalUnit?
+
+        switch unit.type {
+        case .sps:
+            spsUnit = unit
+        case .pps:
+            ppsUnit = unit
+        case .idr:
+            initDecoder(vpsUnit: nil, spsUnit: spsUnit, ppsUnit: ppsUnit, isReset: false)
+            currntUnit = unit
+        case .pFrame:
+            currntUnit = unit
+        default:
+            break
+        }
+        
+        guard let unit = currntUnit else {
+            return
+        }
+        decodeVideoUnit(unit)
+        
+    }
+    
     open func decodeVideoUnit(_ unit: NalUnitProtocol) {
                         
         var blockBuffer: CMBlockBuffer?
